@@ -95,7 +95,7 @@ int main(int argc,char** argv) {
 		}
 	}
 	fclose(fp);
-	if (line) free(line)
+	if (line) free(line);
 
 	
 	//printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high2, ctemp.low2, ctemp.high2);
