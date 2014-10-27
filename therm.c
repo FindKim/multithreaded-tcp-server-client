@@ -27,6 +27,7 @@ float CtoF(float C) {
 
 //Struct for configuration file
 typedef struct {
+	char hostname[32];
 	int nsensor;
 	double lowval, highval;
 	double low1, high1, low2, high2;
@@ -44,12 +45,9 @@ void set_lowval(config *x) {
 	x->lowval = (x->low1 < x->low2) ? x->low1 : x->low2;
 }
 
-void get_hostname() {
-
-}
-
-void set_hostname() {
-
+void set_hostname(config *x) {
+	x->hostname[31] = '\0';
+	gethostname(x->hostname, 31);
 }
 
 
@@ -63,6 +61,8 @@ int main(int argc,char** argv) {
 	config ctemp;
 	int fd, fd2;
 
+	// Set hostname
+	set_hostname(&ctemp);
 
 	//Fill config struct with info from config file
 	FILE *config_file = fopen(configName, "rb");
@@ -128,7 +128,7 @@ int main(int argc,char** argv) {
 	// Print, check values
 	printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high1, ctemp.low2, ctemp.high2);
 	printf("Low: %.1f\nHigh: %.1f\n", ctemp.lowval, ctemp.highval);
-	
+	printf("Hostname: %s\n", ctemp.hostname);
 	
 	
 	/*
