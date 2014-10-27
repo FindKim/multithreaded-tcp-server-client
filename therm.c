@@ -26,11 +26,31 @@ float CtoF(float C) {
 }
 
 //Struct for configuration file
-struct config {
+typedef struct {
 	int nsensor;
 	double lowval, highval;
 	double low1, high1, low2, high2;
-};
+} config;
+
+// Sets highest temperature value from all the readings
+void set_highval(config *x) {
+	// Disregardes number of sensors because default value == 0
+	x->highval = (x->high1 > x->high2) ? x->high1 : x->high2;
+}
+
+// Sets lowest temperature value from all the readings
+void set_lowval(config *x) {
+	// Disregardes number of sensors because default value == 0
+	x->lowval = (x->low1 < x->low2) ? x->low1 : x->low2;
+}
+
+void get_hostname() {
+
+}
+
+void set_hostname() {
+
+}
 
 
 
@@ -40,8 +60,9 @@ int main(int argc,char** argv) {
 	char *fileName2="/dev/gotemp2";
 	char *configName = "/etc/t_client/client.conf";
 	struct sensorInfo temp, temp2;
-	struct config ctemp;
+	config ctemp;
 	int fd, fd2;
+
 
 	//Fill config struct with info from config file
 	FILE *config_file = fopen(configName, "rb");
@@ -82,6 +103,8 @@ int main(int argc,char** argv) {
 					ctemp.low1 = strtod(temp_readings,NULL);
 					temp_readings = strtok(NULL, " ");
 					ctemp.high1 = strtod(temp_readings,NULL);
+					ctemp.low2 = 0;
+					ctemp.high2 = 0;
 					sensor_counter++;
 				
 				// Second sensor (if exists)
@@ -94,11 +117,19 @@ int main(int argc,char** argv) {
 			}
 		}
 	}
+	// Cleanup
 	fclose(config_file);
 	if (line) free(line);
-
 	
-	printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high2, ctemp.low2, ctemp.high2);
+	// Sets lowest and highest value from all readings
+	set_highval(&ctemp);
+	set_lowval(&ctemp);
+	
+	// Print, check values
+	printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high1, ctemp.low2, ctemp.high2);
+	printf("Low: %.1f\nHigh: %.1f\n", ctemp.lowval, ctemp.highval);
+	
+	
 	
 	/*
 
