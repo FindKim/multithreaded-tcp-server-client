@@ -1,10 +1,18 @@
-// Kim Ngo & Dinh Do
-// Networks: Project 2
-// TCP Client
-// therm.c
+/*
 
-// therm.c is a client application that reads a configuration file, reads sensors that are connected to machines, and transfer the readings to a multi-threaded server.
+	Kim Ngo & Dinh Do
+	Networks: Project 2
+	TCP Client
+	therm.c
 
+	therm.c is a client application that reads a configuration file, reads sensors that are connected to machines, and transfer the readings to a multi-threaded server.
+
+	Referenced code from Jeff Sadowski <jeff.sadowski@gmail.com>
+	with information gathered from David L. Vernier
+	and Greg KH This Program is Under the terms of the 
+	GPL http://www.gnu.org/copyleft/gpl.html
+
+*/
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -45,25 +53,14 @@ void set_lowval(config *x) {
 	x->lowval = (x->low1 < x->low2) ? x->low1 : x->low2;
 }
 
+// Sets hostname
 void set_hostname(config *x) {
 	x->hostname[31] = '\0';
 	gethostname(x->hostname, 31);
 }
 
-
-
-int main(int argc,char** argv) {
-
-	char *fileName="/dev/gotemp";
-	char *fileName2="/dev/gotemp2";
-	char *configName = "/etc/t_client/client.conf";
-	struct sensorInfo temp, temp2;
-	config ctemp;
-	int fd, fd2;
-
-	// Set hostname
-	set_hostname(&ctemp);
-
+// Initializes config struct values with values read from client.config file
+void set_config(char *configName, config *ctemp) {
 	//Fill config struct with info from config file
 	FILE *config_file = fopen(configName, "rb");
 	if (config_file == NULL) exit(EXIT_FAILURE);
@@ -78,20 +75,20 @@ int main(int argc,char** argv) {
 		
 		// First line contains number of sensors
 		if (first_line) {
-			sscanf(line, "%d", &ctemp.nsensor);
+			sscanf(line, "%d", &ctemp->nsensor);
 			first_line = 0;
 		
 		// Following lines contain low and high values
 		} else {
 			
 			// Case: Machine has no sensors
-			if (ctemp.nsensor == 0) {
-				ctemp.low1 = 0;
-				ctemp.high1 = 0;
-				ctemp.low2 = 0;
-				ctemp.high2 = 0;
-				ctemp.lowval = 0;
-				ctemp.highval = 0;
+			if (ctemp->nsensor == 0) {
+				ctemp->low1 = 0;
+				ctemp->high1 = 0;
+				ctemp->low2 = 0;
+				ctemp->high2 = 0;
+				ctemp->lowval = 0;
+				ctemp->highval = 0;
 			
 			// Case: Machine has sensors
 			} else {
@@ -100,18 +97,18 @@ int main(int argc,char** argv) {
 				
 				// First sensor
 				if (sensor_counter == 0) {
-					ctemp.low1 = strtod(temp_readings,NULL);
+					ctemp->low1 = strtod(temp_readings,NULL);
 					temp_readings = strtok(NULL, " ");
-					ctemp.high1 = strtod(temp_readings,NULL);
-					ctemp.low2 = 0;
-					ctemp.high2 = 0;
+					ctemp->high1 = strtod(temp_readings,NULL);
+					ctemp->low2 = 0;
+					ctemp->high2 = 0;
 					sensor_counter++;
 				
 				// Second sensor (if exists)
-				} else if (sensor_counter == 1 && ctemp.nsensor == 2) {
-					ctemp.low2 = strtod(temp_readings,NULL);
+				} else if (sensor_counter == 1 && ctemp->nsensor == 2) {
+					ctemp->low2 = strtod(temp_readings,NULL);
 					temp_readings = strtok(NULL, " ");
-					ctemp.high2 = strtod(temp_readings,NULL);
+					ctemp->high2 = strtod(temp_readings,NULL);
 					sensor_counter++;
 				}
 			}
@@ -120,6 +117,25 @@ int main(int argc,char** argv) {
 	// Cleanup
 	fclose(config_file);
 	if (line) free(line);
+}
+
+
+
+
+int main(int argc,char** argv) {
+
+	char *fileName="/dev/gotemp";
+	char *fileName2="/dev/gotemp2";
+	char *configName = "/etc/t_client/client.conf";
+	struct sensorInfo temp, temp2;
+	config ctemp;
+	int fd, fd2;
+
+	// Set hostname
+	set_hostname(&ctemp);
+	
+	// Reads config file and initializes values
+	set_config(configName, &ctemp);
 	
 	// Sets lowest and highest value from all readings
 	set_highval(&ctemp);
@@ -131,12 +147,12 @@ int main(int argc,char** argv) {
 	printf("Hostname: %s\n", ctemp.hostname);
 	
 	
-	/*
-
 	//If there are no sensors, exit
 	if(ctemp.nsensor == 0){
 		exit;
 	}
+	
+	/*
 
 	//If there is at least one, open file for sensor 1
 	if((fd=open(fileName,O_RDONLY))==-1) {
