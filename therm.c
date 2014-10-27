@@ -3,6 +3,9 @@
 // TCP Client
 // therm.c
 
+// therm.c is a client application that reads a configuration file, reads sensors that are connected to machines, and transfer the readings to a multi-threaded server.
+
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -14,19 +17,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "packet.h"
+#include <string.h>
 
 
 //Function to convert Celsius to Fahrenheit
-float CtoF(float C){return (C*9.0/5.0)+32;}
+float CtoF(float C) {
+	return (C*9.0/5.0)+32;
+}
 
 //Struct for configuration file
-struct config{
-	int nsensor = 0;
-	double lowval = 0, highval = 0;
-	double low1 = 0, high1 = 0, low2 = 0, high2 = 0;
+struct config {
+	int nsensor;
+	double lowval, highval;
+	double low1, high1, low2, high2;
 };
 
+
+
 int main(int argc,char** argv) {
+
 	char *fileName="/dev/gotemp";
 	char *fileName2="/dev/gotemp2";
 	char *configName = "/etc/t_client/client.conf";
@@ -35,7 +44,62 @@ int main(int argc,char** argv) {
 	int fd, fd2;
 
 	//Fill config struct with info from config file
-	//code for above
+	FILE *config_file = fopen(configName, "rb");
+	if (config_file == NULL) exit(EXIT_FAILURE);
+	
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int first_line = 1;
+	int sensor_counter = 0;
+	while ((read = getline(&line, &len, config_file)) != -1) {
+		strtok(line, "\n");
+		
+		// First line contains number of sensors
+		if (first_line) {
+			sscanf(line, "%d", &ctemp.nsensor);
+			first_line = 0;
+		
+		// Following lines contain low and high values
+		} else {
+			
+			// Case: Machine has no sensors
+			if (ctemp.nsensor == 0) {
+				ctemp.low1 = 0;
+				ctemp.high1 = 0;
+				ctemp.low2 = 0;
+				ctemp.high2 = 0;
+				ctemp.lowval = 0;
+				ctemp.highval = 0;
+			
+			// Case: Machine has sensors
+			} else {
+				char *temp_readings;
+				temp_readings = strtok(line, " ");
+				
+				// First sensor
+				if (sensor_counter == 0) {
+					ctemp.low1 = strtod(temp_readings,NULL);
+					temp_readings = strtok(NULL, " ");
+					ctemp.high1 = strtod(temp_readings,NULL);
+					sensor_counter++;
+				
+				// Second sensor (if exists)
+				} else if (sensor_counter == 1 && ctemp.nsensor == 2) {
+					ctemp.low2 = strtod(temp_readings,NULL);
+					temp_readings = strtok(NULL, " ");
+					ctemp.high2 = strtod(temp_readings,NULL);
+					sensor_counter++;
+				}
+			}
+		}
+	}
+	
+	printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high2, ctemp.low2, ctemp.high2);
+	
+	/*
+	fclose(fp);
+	if (line) free(line)
 
 
 	//If there are no sensors, exit
@@ -46,13 +110,13 @@ int main(int argc,char** argv) {
 	//If there is at least one, open file for sensor 1
 	if((fd=open(fileName,O_RDONLY))==-1) {
 		fprintf(stderr,"Could not read %s\n",fileName);
-		/*    return 1; */
+		//    return 1;
 	}
 
 	//Read temp reading for sensor 1
 	if(read(fd,&temp.data,sizeof(temp))!=8) {
 		fprintf(stderr,"Error reading %s\n",fileName);
-		/*    return 1; */
+		//    return 1;
 	}
 
 	
@@ -66,7 +130,7 @@ int main(int argc,char** argv) {
 	temp.action = 0;			//action requested
 	
 	
-	/*Send first sensor packet*/
+	//Send first sensor packet
 	//Code for sending first packet to server//
 
 
@@ -80,13 +144,13 @@ int main(int argc,char** argv) {
 	//If there is another sensor, do the same as above for sensor 2
 	if((fd2=open(fileName2,O_RDONLY))==-1) {
 		fprintf(stderr,"Could not read %s\n",fileName2);
-		/*    return 1; */
+		//    return 1;
 	}
 
 
 	if(read(fd2,&temp2.data,sizeof(temp))!=8) {
    		fprintf(stderr,"Error reading %s\n",fileName2);
-		/*    return 1; */
+		    return 1;
 	}
 
 	close(fd2);
@@ -100,7 +164,7 @@ int main(int argc,char** argv) {
 	temp2.action = 0;			//action requested
 
 	
-	/*Send second sensor packet*/
+	//Send second sensor packet
 	//Cose for sending second packet to server//
 
 	float conversion=0.0078125;
@@ -108,6 +172,7 @@ int main(int argc,char** argv) {
 	(CtoF(((float)temp.data)*conversion)),
 	(CtoF(((float)temp2.data)*conversion)));	
 	
+	*/
 	exit;
 
 }
