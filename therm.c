@@ -26,89 +26,112 @@
 #include <stdio.h>
 #include "packet.h"
 #include <string.h>
+#include <time.h>	// Timestamp
 
+// Timestamp function ~24 char
+char * timestamp() {
+	time_t ltime;				// Calendar time
+	ltime = time(NULL);	// Current cal time
+	return asctime(localtime(&ltime));
+}
 
-//Function to convert Celsius to Fahrenheit
-float CtoF(float C) {
+// Function to convert Celsius to Fahrenheit
+double CtoF(double C) {
 	return (C*9.0/5.0)+32;
 }
 
-//Struct for configuration file
+// Struct for temperature reading
 typedef struct {
-	char hostname[32];
-	int nsensor;
-	double lowval, highval;
-	double low1, high1, low2, high2;
-} config;
+	char hostname[32];	// Name of host with the sensors
+	int nsensor;				// Number of sensors
+	int sensor_num;			// Sensor number
+	double low, high;	// Acceptable low/high value for this sensor
+	double data;				// Sensor reading
+	char timestamp[32];	// Timestamp
+	int action;					// Action requested
+	// action == 0: Send sensor data
+	// action == 1: Request status
+	// Sensor data fields in your struct should be set to zero for a “request status” packet.
+} sensorInfo;
 
-// Sets highest temperature value from all the readings
-void set_highval(config *x) {
-	// Disregardes number of sensors because default value == 0
-	x->highval = (x->high1 > x->high2) ? x->high1 : x->high2;
-}
+typedef struct {
+	unsigned char measurements;
+	unsigned char counter;
+	int16_t measurement0;
+	int16_t measurement1;
+	int16_t measurement2;
+} tempReading;
 
-// Sets lowest temperature value from all the readings
-void set_lowval(config *x) {
-	// Disregardes number of sensors because default value == 0
-	x->lowval = (x->low1 < x->low2) ? x->low1 : x->low2;
-}
 
 // Sets hostname
-void set_hostname(config *x) {
+void set_hostname(sensorInfo *x) {
 	x->hostname[31] = '\0';
 	gethostname(x->hostname, 31);
 }
 
-// Initializes config struct values with values read from client.config file
-void set_config(char *configName, config *ctemp) {
-	//Fill config struct with info from config file
+
+
+
+int main(int argc,char** argv) {
+	
+	char *configName = "/etc/t_client/client.conf";
+	
+	char *temp_file1="/dev/gotemp";
+	char *temp_file2="/dev/gotemp2";
+	sensorInfo sensor, sensor2;
+	tempReading temp, temp2;
+	struct stat buf, buf2;
+	int fd, fd2;
+	int nsensor = 0; // Number of sensors
+	double CONVERSION = 0.0078125;
+	
+	
+	// Reads from client.config file and initializes appropriate number of packets
 	FILE *config_file = fopen(configName, "rb");
 	if (config_file == NULL) exit(EXIT_FAILURE);
 	
 	char *line = NULL;
 	size_t len = 0;
-	ssize_t read;
 	int first_line = 1;
 	int sensor_counter = 0;
-	while ((read = getline(&line, &len, config_file)) != -1) {
+	while ((getline(&line, &len, config_file)) != -1) {
 		strtok(line, "\n");
 		
 		// First line contains number of sensors
 		if (first_line) {
-			sscanf(line, "%d", &ctemp->nsensor);
+			sscanf(line, "%d", &nsensor);
 			first_line = 0;
 		
 		// Following lines contain low and high values
 		} else {
 			
 			// Case: Machine has no sensors
-			if (ctemp->nsensor == 0) {
-				ctemp->low1 = 0;
-				ctemp->high1 = 0;
-				ctemp->low2 = 0;
-				ctemp->high2 = 0;
-				ctemp->lowval = 0;
-				ctemp->highval = 0;
+			if (nsensor == 0) {
+				break;
 			
 			// Case: Machine has sensors
 			} else {
-				char *temp_readings;
-				temp_readings = strtok(line, " ");
+				char *range_readings;
+				range_readings = strtok(line, " ");
 				
-				// First sensor
+				// Initialize first sensor values
 				if (sensor_counter == 0) {
-					ctemp->low1 = strtod(temp_readings,NULL);
-					temp_readings = strtok(NULL, " ");
-					ctemp->high1 = strtod(temp_readings,NULL);
-					ctemp->low2 = 0;
-					ctemp->high2 = 0;
+					set_hostname(&sensor);	// Set hostname
+					sensor.nsensor = nsensor;
+					sensor.sensor_num = 0;	// /dev/gotemp
+					sensor.low = strtod(range_readings,NULL);
+					range_readings = strtok(NULL, " ");
+					sensor.high = strtod(range_readings,NULL);
 					sensor_counter++;
 				
 				// Second sensor (if exists)
-				} else if (sensor_counter == 1 && ctemp->nsensor == 2) {
-					ctemp->low2 = strtod(temp_readings,NULL);
-					temp_readings = strtok(NULL, " ");
-					ctemp->high2 = strtod(temp_readings,NULL);
+				} else if (sensor_counter == 1 && nsensor == 2) {
+					set_hostname(&sensor2);	// Set hostname
+					sensor2.nsensor = nsensor;
+					sensor2.sensor_num = 1;	// /dev/gotemp2
+					sensor2.low = strtod(range_readings,NULL);
+					range_readings = strtok(NULL, " ");
+					sensor2.high = strtod(range_readings,NULL);
 					sensor_counter++;
 				}
 			}
@@ -117,109 +140,76 @@ void set_config(char *configName, config *ctemp) {
 	// Cleanup
 	fclose(config_file);
 	if (line) free(line);
-}
-
-
-
-
-int main(int argc,char** argv) {
-
-	char *fileName="/dev/gotemp";
-	char *fileName2="/dev/gotemp2";
-	char *configName = "/etc/t_client/client.conf";
-	struct sensorInfo temp, temp2;
-	config ctemp;
-	int fd, fd2;
-
-	// Set hostname
-	set_hostname(&ctemp);
-	
-	// Reads config file and initializes values
-	set_config(configName, &ctemp);
-	
-	// Sets lowest and highest value from all readings
-	set_highval(&ctemp);
-	set_lowval(&ctemp);
-	
-	// Print, check values
-	printf("%d, %.1f, %.1f, %.1f, %.1f\n", ctemp.nsensor, ctemp.low1, ctemp.high1, ctemp.low2, ctemp.high2);
-	printf("Low: %.1f\nHigh: %.1f\n", ctemp.lowval, ctemp.highval);
-	printf("Hostname: %s\n", ctemp.hostname);
-	
-	
-	//If there are no sensors, exit
-	if(ctemp.nsensor == 0){
-		exit;
-	}
-	
-	/*
-
-	//If there is at least one, open file for sensor 1
-	if((fd=open(fileName,O_RDONLY))==-1) {
-		fprintf(stderr,"Could not read %s\n",fileName);
-		//    return 1;
-	}
-
-	//Read temp reading for sensor 1
-	if(read(fd,&temp.data,sizeof(temp))!=8) {
-		fprintf(stderr,"Error reading %s\n",fileName);
-		//    return 1;
-	}
 
 	
-	//Fill sensorInfo struct
-	temp.hostName = //add hostname		//host name of sensor
-	temp.numSens = ctemp.nsensor;		//number of sensors
-	temp.sensorNum = 0;			//sensor number
-	temp.lowval = ctemp.low1;		//low value of sensor
-	temp.highval = ctemp.high1;		//high value of sensor
-	temp.timestamp = //add timestamp		
-	temp.action = 0;			//action requested
+	// If there are no sensors
+	if (nsensor == 0){
+		// Do something?
 	
+	// If there are sensors
+	} else {
+		if (stat(temp_file1, &buf)) {
 	
-	//Send first sensor packet
-	//Code for sending first packet to server//
-
-
-	//Check if there is another sensor
-	if(ctemp.nsensor == 1){
-		close (fd);
-		exit;
-	}
+			if (mknod(temp_file1, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP |S_IWGRP|S_IROTH|S_IWOTH, makedev(180,176))) {
+				fprintf(stderr,"Cannot create device %s need to be root", temp_file1);
+				return 1;
+			}
+		}
+	
 		
+		// If there is at least one, open file for sensor 1
+		if((fd = open(temp_file1, O_RDONLY)) == -1) {
+			fprintf(stderr,"Could not read %s\n", temp_file1);
+			return 1;
+		}
+		
+		// Read temp reading for sensor 1
+		if(read(fd, &temp, sizeof(temp)) != 8) {
+			fprintf(stderr,"Error reading %s\n", temp_file1);
+			return 1;
+		}
 	
-	//If there is another sensor, do the same as above for sensor 2
-	if((fd2=open(fileName2,O_RDONLY))==-1) {
-		fprintf(stderr,"Could not read %s\n",fileName2);
-		//    return 1;
+		// Fill sensor1 info
+		sensor.data = CtoF(temp.measurement0 * CONVERSION);
+		strcpy(sensor.timestamp, timestamp());			// add timestamp	
+		sensor.action = 0;								// action requested
+	
+		// Print, check values
+		printf("Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor.hostname, sensor.nsensor, sensor.sensor_num, sensor.low, sensor.high, sensor.data, sensor.timestamp);
+
+		close (fd);
+		
+		
+		// Check if there is another sensor
+		if(nsensor == 2){
+			if (stat(temp_file2, &buf2)) {
+				if (mknod(temp_file1, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP |S_IWGRP|S_IROTH|S_IWOTH,makedev(180,176))) {
+					fprintf(stderr,"Cannot create device %s need to be root", temp_file2);
+					return 1;
+				}
+			}
+	
+			// If there is another sensor, do the same as above for sensor 2
+			if((fd2 = open(temp_file2, O_RDONLY)) == -1) {
+				fprintf(stderr,"Could not read %s\n", temp_file2);
+				return 1;
+			}
+	
+			// Read temp reading for sensor 2
+			if(read(fd2, &temp2, sizeof(temp2)) != 8) {
+				fprintf(stderr,"Error reading %s\n", temp_file2);
+				return 1;
+			}
+	
+			// Fill sensorInfo struct for sensor2
+			sensor2.data = CtoF(temp2.measurement0 * CONVERSION);
+			strcpy(sensor2.timestamp, timestamp());		// add timestamp		
+			sensor2.action = 0;												// action requested
+			printf("Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor2.hostname, sensor2.nsensor, sensor2.sensor_num, sensor2.low, sensor2.high, sensor2.data, sensor2.timestamp);
+		}
 	}
 
 
-	if(read(fd2,&temp2.data,sizeof(temp))!=8) {
-   		fprintf(stderr,"Error reading %s\n",fileName2);
-		    return 1;
-	}
-
-	close(fd2);
-
-	temp2.hostName = //add hostname		//host name of sensor
-	temp2.numSens = ctemp.nsensor;		//number of sensors
-	temp2.sensorNum = 1;			//sensor number
-	temp2.lowval = ctemp.low2;		//low value of sensor
-	temp2.highval = ctemp.high2;		//high value of sensor
-	temp2.timestamp = //add timestamp		
-	temp2.action = 0;			//action requested
-
-	
-	//Send second sensor packet
-	//Cose for sending second packet to server//
-
-	float conversion=0.0078125;
-	printf("%3.2f %3.2f\n",
-	(CtoF(((float)temp.data)*conversion)),
-	(CtoF(((float)temp2.data)*conversion)));	
-	
-	*/
 	exit;
 
 }
