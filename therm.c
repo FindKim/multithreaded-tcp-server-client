@@ -24,7 +24,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "packet.h"
 #include <string.h>
 #include <time.h>	// Timestamp
 
@@ -97,7 +96,7 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 int main(int argc,char** argv) {
 	
 	char *configName = "/etc/t_client/client.conf";
-	
+	char *errorFile = "/var/log/therm/error/g05_error_log";
 	char *temp_file1="/dev/gotemp";
 	char *temp_file2="/dev/gotemp2";
 	sensorInfo sensor, sensor2;
@@ -107,6 +106,9 @@ int main(int argc,char** argv) {
 	int nsensor = 0; // Number of sensors
 	double CONVERSION = 0.0078125;
 	
+	//Open error log
+	FILE *errorlog = fopen(errorFile, "a");
+	if(errorlog == NULL) exit(EXIT_FAILURE);
 	
 	// Reads from client.config file and initializes appropriate number of packets
 	FILE *config_file = fopen(configName, "rb");
@@ -173,7 +175,8 @@ int main(int argc,char** argv) {
 		if (stat(temp_file1, &buf)) {
 	
 			if (mknod(temp_file1, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP |S_IWGRP|S_IROTH|S_IWOTH, makedev(180,176))) {
-				fprintf(stderr,"Cannot create device %s need to be root", temp_file1);
+				fprintf(stderr,"Cannot create device %s need to be root", temp_file1); 
+				fprintf(errorlog, "Cannot create device %s need to be root\n", temp_file1); 
 				return 1;
 			}
 		}
@@ -182,12 +185,14 @@ int main(int argc,char** argv) {
 		// If there is at least one, open file for sensor 1
 		if((fd = open(temp_file1, O_RDONLY)) == -1) {
 			fprintf(stderr,"Could not read %s\n", temp_file1);
+			fprintf(errorlog, "Could not read %s\n", temp_file1);
 			return 1;
 		}
 		
 		// Read temp reading for sensor 1
 		if(read(fd, &temp, sizeof(temp)) != 8) {
 			fprintf(stderr,"Error reading %s\n", temp_file1);
+			fprintf(errorlog, "Error reading %s\n", temp_file1);
 			return 1;
 		}
 	
@@ -207,6 +212,7 @@ int main(int argc,char** argv) {
 			if (stat(temp_file2, &buf2)) {
 				if (mknod(temp_file1, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP |S_IWGRP|S_IROTH|S_IWOTH,makedev(180,176))) {
 					fprintf(stderr,"Cannot create device %s need to be root", temp_file2);
+					fprintf(errorlog, "Cannot create device %s need to be root\n", temp_file2);
 					return 1;
 				}
 			}
@@ -214,12 +220,14 @@ int main(int argc,char** argv) {
 			// If there is another sensor, do the same as above for sensor 2
 			if((fd2 = open(temp_file2, O_RDONLY)) == -1) {
 				fprintf(stderr,"Could not read %s\n", temp_file2);
+				fprintf(errorlog, "Could not read %s\n", temp_file2);
 				return 1;
 			}
 	
 			// Read temp reading for sensor 2
 			if(read(fd2, &temp2, sizeof(temp2)) != 8) {
 				fprintf(stderr,"Error reading %s\n", temp_file2);
+				fprintf(errorlog, "Error reading %s\n", temp_file2);
 				return 1;
 			}
 	
@@ -250,6 +258,7 @@ int main(int argc,char** argv) {
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		fprintf(stderr, "Error openning socket\n");
+		fprintf(errorlog, "Error opening socket\n);
 	}
 	
 	// Server information
@@ -261,6 +270,7 @@ int main(int argc,char** argv) {
 	serv_addr.sin_port = htons(portno);
 	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
 		fprintf(stderr, "Error connecting\n");
+		fprintf(errorlog, "Error connecting\n");
 		exit(0);
 	}
 
@@ -270,6 +280,9 @@ int main(int argc,char** argv) {
 	// Sends sensorInfo struct 2 to server
 	if (nsensor == 2) send_struct(sockfd, &sensor2);
 	*/
+
+	close(errorlog);
+
 	exit;
 }
 	
