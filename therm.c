@@ -93,7 +93,13 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 }
 
 
-int main(int argc,char** argv) {
+int main(int argc, char *argv[]) {
+	
+	// Requires hostname argument in command line
+	if (argc != 2) {
+		printf("usage: %s hostname\n", argv[0]);
+		exit(0);
+	}
 	
 	char *configName = "/etc/t_client/client.conf";
 	char *errorFile = "/var/log/therm/error/g05_error_log";
@@ -248,17 +254,14 @@ int main(int argc,char** argv) {
 	struct hostent *server;
 	char buffer[256];
 	
-	portno = PORTNO;
-	/*
-	// *** INSERT HERE ***
-	server = // insert hostname here?
-	// ***
+	portno = PORTNO;		// port number
+	server = gethostbyname(argv[1]);		// insert hostname here
 	
 	// Openning socket
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		fprintf(stderr, "Error openning socket\n");
-		fprintf(errorlog, "Error opening socket\n);
+		fprintf(errorlog, "Error opening socket\n");
 	}
 	
 	// Server information
@@ -279,7 +282,6 @@ int main(int argc,char** argv) {
 	
 	// Sends sensorInfo struct 2 to server
 	if (nsensor == 2) send_struct(sockfd, &sensor2);
-	*/
 
 	fclose(errorlog);
 
