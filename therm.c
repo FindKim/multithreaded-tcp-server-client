@@ -281,7 +281,7 @@ int main(int argc,char** argv) {
 	if (nsensor == 2) send_struct(sockfd, &sensor2);
 	*/
 
-	close(errorlog);
+	fclose(errorlog);
 
 	exit;
 }
