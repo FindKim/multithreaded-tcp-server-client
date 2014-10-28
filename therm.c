@@ -28,6 +28,9 @@
 #include <string.h>
 #include <time.h>	// Timestamp
 
+char* GROUPNO = "g05";
+int PORTNO = 9766;
+
 // Timestamp function ~24 char
 char * timestamp() {
 	time_t ltime;				// Calendar time
@@ -54,6 +57,7 @@ typedef struct {
 	// Sensor data fields in your struct should be set to zero for a “request status” packet.
 } sensorInfo;
 
+// Struct for reading temperature from sensors
 typedef struct {
 	unsigned char measurements;
 	unsigned char counter;
@@ -69,7 +73,25 @@ void set_hostname(sensorInfo *x) {
 	gethostname(x->hostname, 31);
 }
 
+// Sends struct information to server
+// Returns 0 if error occured
+// Returns 1 if successful
+int send_struct(const int sockfd, const sensorInfo *x) {
+	int n;
+	unsigned int len;				// Length of message to be sent to server
+	char buf[256];					// Concatenated struct into message str
 
+	sprintf(buf, "%s,%d,%d,%.2f,%.2f,%.2f,%s,%d", x->hostname, x->nsensor, x->sensor_num, x->low, x->high, x->data, x->timestamp, x->action);
+	len = strlen(buf);
+	
+	if ((n = write(sockfd, buf, len)) < 0) {
+		fprintf(stderr, "Error writing to socket\n");
+		return 0;
+	}
+	
+	printf("%s\nMessage Length: %d\n", buf, len);
+	return 1;
+}
 
 
 int main(int argc,char** argv) {
@@ -210,7 +232,44 @@ int main(int argc,char** argv) {
 	}
 
 
-	exit;
 
+
+	// TCP Client portion
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+	char buffer[256];
+	
+	portno = PORTNO;
+	/*
+	// *** INSERT HERE ***
+	server = // insert hostname here?
+	// ***
+	
+	// Openning socket
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd < 0) {
+		fprintf(stderr, "Error openning socket\n");
+	}
+	
+	// Server information
+	bzero((char*) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+	
+	// Connect to port
+	serv_addr.sin_port = htons(portno);
+	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+		fprintf(stderr, "Error connecting\n");
+		exit(0);
+	}
+
+	// Sends sensorInfo struct to server
+	if (nsensor > 0) send_struct(sockfd, &sensor);
+	
+	// Sends sensorInfo struct 2 to server
+	if (nsensor == 2) send_struct(sockfd, &sensor2);
+	*/
+	exit;
 }
 	
