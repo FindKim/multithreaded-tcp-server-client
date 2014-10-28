@@ -33,7 +33,7 @@ int PORTNO = 9766;
 // Timestamp function ~24 char
 char * timestamp() {
 	time_t ltime;				// Calendar time
-	ltime = time(NULL);	// Current cal time
+	ltime = time(NULL);			// Current cal time
 	return asctime(localtime(&ltime));
 }
 
@@ -77,14 +77,22 @@ void set_hostname(sensorInfo *x) {
 // Returns 1 if successful
 int send_struct(const int sockfd, const sensorInfo *x) {
 	int n;
-	unsigned int len;				// Length of message to be sent to server
+	uint16_t len, len2;				// Length of message to be sent to server
 	char buf[256];					// Concatenated struct into message str
 
 	sprintf(buf, "%s,%d,%d,%.2f,%.2f,%.2f,%s,%d", x->hostname, x->nsensor, x->sensor_num, x->low, x->high, x->data, x->timestamp, x->action);
 	len = strlen(buf);
 	
+	
+	len2 = htons(len);
+	if ((n = write(sockfd, &len2, sizeof(uint16_t))) < 0) {
+		fprintf(stderr, "Error in message length writing to socket\n");
+		return 0;
+	}
+ 
+	
 	if ((n = write(sockfd, buf, len)) < 0) {
-		fprintf(stderr, "Error writing to socket\n");
+		fprintf(stderr, "Error writing message to socket\n");
 		return 0;
 	}
 	
@@ -208,7 +216,7 @@ int main(int argc, char *argv[]) {
 		sensor.action = 0;								// action requested
 	
 		// Print, check values
-		printf("Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor.hostname, sensor.nsensor, sensor.sensor_num, sensor.low, sensor.high, sensor.data, sensor.timestamp);
+		printf("FROM CLIENT: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor.hostname, sensor.nsensor, sensor.sensor_num, sensor.low, sensor.high, sensor.data, sensor.timestamp);
 
 		close (fd);
 		
@@ -241,7 +249,7 @@ int main(int argc, char *argv[]) {
 			sensor2.data = CtoF(temp2.measurement0 * CONVERSION);
 			strcpy(sensor2.timestamp, timestamp());		// add timestamp		
 			sensor2.action = 0;												// action requested
-			printf("Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor2.hostname, sensor2.nsensor, sensor2.sensor_num, sensor2.low, sensor2.high, sensor2.data, sensor2.timestamp);
+			printf("FROM CLIENT: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor2.hostname, sensor2.nsensor, sensor2.sensor_num, sensor2.low, sensor2.high, sensor2.data, sensor2.timestamp);
 		}
 	}
 
