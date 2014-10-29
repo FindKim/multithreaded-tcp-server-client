@@ -114,7 +114,7 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 int main(int argc, char *argv[]) {
 	
 	//Lock mutex
-	//pthread_mutex_lock (&mtx);
+	pthread_mutex_lock (&mtx);
 	
 
 	// Requires hostname argument in command line
@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
 		sensor.action = 0;								// action requested
 	
 		// Print, check values
-		print_struct(&sensor);
+		//(&sensor);
 		close (fd);
 		
 		
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
 			sensor2.action = 0;												// action requested
 			
 			// Print, check values
-			print_struct(&sensor2);
+			//print_struct(&sensor2);
 			close(fd2);
 		}
 	}
@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
 	fclose(errorlog);
 
 	//unlock mutex
-	//pthread_mutex_unlock(&mtx);
+	pthread_mutex_unlock(&mtx);
 
 	exit;
 }
