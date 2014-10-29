@@ -1,7 +1,32 @@
 Kim Ngo & Dinh Do
-
 CSE 30264: Networks
+Oct. 28, 2014
 
 Project 2: Program a TCP client and multi-threaded TCP Server
+
+Files included:
+	README	therm.c	thermd.c	makefile
+
+Compile:
+	make
+
+Execute client:
+	./therm [host]
+
+Execute server:
+	./thermd
+
+crontab used to invoke client code
+	template)	4,34 * * * * [fullpath]/therm [host]
+	example)	4,34 * * * * /afs/nd.edu/user25/kngo/cse30264_computer_networks/proj2/multithreaded-tcp-server-client/therm student02.cse.nd.edu
+	
+Design decisions:
+	The client first checks if a host is provided on the command line when executed and notifies users accordingly. Each time a client is called on by cron, the client will open and read the machine's client.conf file. Depending on the number of sensors provided on the first line of client.conf, the client will instantiate that many structs to store sensor information. The client exits if the machine has no sensors and does not connect to the server. Otherwise, sensor high/low information is parsed in stored in a struct along with the client's hostname, number of sensors for that machine, the sensor number, sensor temperature reading, timestamp, and action. Temperature reading is read and converted to fahrenheit and stored in the struct and a timestamp is taken and stored.
+	A second struct is instantiated if the client.config file denotes 2 sensors and initialization and readings are done.
+	Once all the sensor information is collected that that machine, the client seeks to connect to a server that is specified on the command line. Since structs are not consistently sent across the network, sensor information in the struct is concatenated together into one c string. Each entry is separated by a comma ','. The final size of the concatenated string is first sent to the server as an unsigned short, which endianess in consideration. Once the server receives the short, it waits for the client to send a string of that length, and then splits the string with a comma as the delimiter and is stored in the same format as the client version of the sensor information struct.
+
+Issues:
+	errorlog file permissions: I came across a frustrating issue of writing to an existing log file in the /var/log/therm/error/ directory for my group. We initially thought an error openning the file was due to blocking, but turned out to be simply file permissions not given to the other group member. To solve this issue, the client runs the command chmod to allow everybody access to read and write to the errorlog file--this considers if the file doesn't exist and already exists.
+
 
 
