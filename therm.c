@@ -136,12 +136,12 @@ int main(int argc, char *argv[]) {
 	
 	//Open error log
 	FILE *errorlog;
-	chmod(errorFile, S_IRUSR | S_IROTH | S_IWUSR | S_IWOTH );
+	chmod(errorFile, S_IRUSR | S_IROTH | S_IRGRP | S_IWGRP | S_IWUSR | S_IWOTH );
 	if ((errorlog = fopen(errorFile, "a")) == NULL) {
 		printf("Couldn't open %s for writing.\n", errorFile);
 		exit(1);
 	}
-	chmod(errorFile, S_IRUSR | S_IROTH | S_IWUSR | S_IWOTH );
+	chmod(errorFile, S_IRUSR | S_IROTH | S_IRGRP | S_IWGRP | S_IWUSR | S_IWOTH );
 	
 	// Reads from client.config file and initializes appropriate number of packets
 	FILE *config_file = fopen(configName, "rb");
