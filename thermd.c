@@ -30,7 +30,7 @@ typedef struct {
 	char hostname[32];	// Name of host with the sensors
 	int nsensor;				// Number of sensors
 	int sensor_num;			// Sensor number
-	double low, high;	// Acceptable low/high value for this sensor
+	double low, high;		// Acceptable low/high value for this sensor
 	double data;				// Sensor reading
 	char timestamp[32];	// Timestamp
 	int action;					// Action requested
@@ -39,14 +39,42 @@ typedef struct {
 	// Sensor data fields in your struct should be set to zero for a “request status” packet.
 } sensorInfo;
 
+
+// Fills sensorInfo struct by parsing buffer with , delimiter
+void fill_struct(sensorInfo *x, char buffer[]) {
+	char *structfill;
+	structfill = strtok(buffer, ",");
+	strcpy(x->hostname, structfill);
+	structfill = strtok (NULL, ",");
+	x->nsensor = atoi(structfill);
+	structfill = strtok (NULL, ",");
+	x->sensor_num = atoi(structfill);
+	structfill = strtok(NULL, ",");
+	x->low = strtod(structfill, NULL);
+	structfill = strtok(NULL, ",");
+	x->high = strtod(structfill, NULL);
+	structfill = strtok(NULL, ",");
+	x->data = strtod(structfill, NULL);
+	structfill = strtok(NULL, ",");
+	strcpy(x->timestamp, structfill);
+	structfill = strtok(NULL, ",");
+	x->action = atoi(structfill);
+}
+
+// Prints values of sensorInfo struct
+void print_struct(const sensorInfo *sensor) {
+	printf("\nFROM SERVER: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\nAction: %d\n", sensor->hostname, sensor->nsensor, sensor->sensor_num, sensor->low, sensor->high, sensor->data, sensor->timestamp, sensor->action);
+}
+
 // Function to receive data from client and fill struct
 void * rec_struct (void * param){
 	
 	int r = *((int *) param);
 	sensorInfo sensor, sensor2;	
 	int rbyte;
+	char buffer[256];
 	char *tok, *tok2;
-	uint16_t datasize, datasize2;
+	uint16_t datasize;
 	char *logfile;
 
 	// Read data size from client
@@ -56,10 +84,6 @@ void * rec_struct (void * param){
 	}
 
 	datasize = ntohs(datasize);
-	//printf("Datasize = %d\n", datasize);
-	
-	// Instantiate buffer size with the datasize received from client
-	char buffer[datasize];
 	bzero(buffer, datasize);	// Clean buffer
 	
 	//read data from client
@@ -69,26 +93,10 @@ void * rec_struct (void * param){
 	}
 	buffer[datasize] = 0;		// Close string
 	
-	printf("Read data, now filling 1st struct\n");
 
 	//Parse through data and fill first struct
-	char *structfill;
-	structfill = strtok(buffer, ",");
-	strcpy(sensor.hostname, structfill);
-	structfill = strtok (NULL, ",");
-	sensor.nsensor = atoi(structfill);
-	structfill = strtok (NULL, ",");
-	sensor.sensor_num = atoi(structfill);
-	structfill = strtok(NULL, ",");
-	sensor.low = strtod(structfill, NULL);
-	structfill = strtok(NULL, ",");
-	sensor.high = strtod(structfill, NULL);
-	structfill = strtok(NULL, ",");
-	sensor.data = strtod(structfill, NULL);
-	structfill = strtok(NULL, ",");
-	strcpy(sensor.timestamp, structfill);
-	structfill = strtok(NULL, ",");
-	sensor.action = atoi(structfill);
+	fill_struct(&sensor, buffer);
+	print_struct(&sensor);
 
 	//If action == 0, append data to logfile
 	/*if(sensor.action == 0){
@@ -96,9 +104,9 @@ void * rec_struct (void * param){
 		sprintf(logfile, "/var/log/therm/temp_logs/g05_"
 		
 	*/
-	printf("\nFROM SERVER: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\nAction: %d\n", sensor.hostname, sensor.nsensor, sensor.sensor_num, sensor.low, sensor.high, sensor.data, sensor.timestamp, sensor.action);
-	
 
+	
+	// Prepare to receive from client if more than 1 sensor
 	if(sensor.nsensor == 2){
 		
 		//read data size from client
@@ -117,27 +125,9 @@ void * rec_struct (void * param){
 		}
 		buffer[datasize] = 0;	// Close string
 
-	
-		printf ("Finished reading data, now filling 2nd struct\n");
 		//Parse through data and fill second struct
-		structfill = strtok(buffer, ",");
-		strcpy(sensor2.hostname, structfill);
-		structfill = strtok (NULL, ",");
-		sensor2.nsensor = atoi(structfill);
-		structfill = strtok (NULL, ",");
-		sensor2.sensor_num = atoi(structfill);
-		structfill = strtok(NULL, ",");
-		sensor2.low = strtod(structfill, NULL);
-		structfill = strtok(NULL, ",");
-		sensor2.high = strtod(structfill, NULL);
-		structfill = strtok(NULL, ",");
-		sensor2.data = strtod(structfill, NULL);
-		structfill = strtok(NULL, ",");
-		strcpy(sensor2.timestamp, structfill);
-		structfill = strtok(NULL, ",");	
-		sensor2.action = atoi(structfill);
-
-		printf("\nFROM SERVER: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\nAction: %d\n", sensor2.hostname, sensor2.nsensor, sensor2.sensor_num, sensor2.low, sensor2.high, sensor2.data, sensor2.timestamp, sensor2.action);
+		fill_struct(&sensor2, buffer);
+		print_struct(&sensor2);
 	}
 
 	close(r);

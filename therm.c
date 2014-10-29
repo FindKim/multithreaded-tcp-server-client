@@ -74,6 +74,12 @@ void set_hostname(sensorInfo *x) {
 	gethostname(x->hostname, 31);
 }
 
+// Prints values of sensorInfo struct
+void print_struct(const sensorInfo *sensor) {
+	printf("\nFROM SERVER: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\nAction: %d\n", sensor->hostname, sensor->nsensor, sensor->sensor_num, sensor->low, sensor->high, sensor->data, sensor->timestamp, sensor->action);
+}
+
+
 // Sends struct information to server
 // Returns 0 if error occured
 // Returns 1 if successful
@@ -83,10 +89,10 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 	char buf[256];					// Concatenated struct into message str
 
 	sprintf(buf, "%s,%d,%d,%.2f,%.2f,%.2f,%s,%d", x->hostname, x->nsensor, x->sensor_num, x->low, x->high, x->data, x->timestamp, x->action);
+	
 	len = strlen(buf);
-	
-	
 	len2 = htons(len);
+
 	if ((n = write(sockfd, &len2, sizeof(uint16_t))) < 0) {
 		fprintf(stderr, "Error in message length writing to socket\n");
 		return 0;
@@ -98,7 +104,7 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 		return 0;
 	}
 	
-	printf("%s\nMessage Length: %d\n", buf, len);
+	//printf("%s\nMessage Length: %d\n", buf, len);
 	return 1;
 }
 
@@ -218,8 +224,7 @@ int main(int argc, char *argv[]) {
 		sensor.action = 0;								// action requested
 	
 		// Print, check values
-		printf("FROM CLIENT: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor.hostname, sensor.nsensor, sensor.sensor_num, sensor.low, sensor.high, sensor.data, sensor.timestamp);
-
+		print_struct(&sensor);
 		close (fd);
 		
 		
@@ -251,7 +256,10 @@ int main(int argc, char *argv[]) {
 			sensor2.data = CtoF(temp2.measurement0 * CONVERSION);
 			strcpy(sensor2.timestamp, timestamp());		// add timestamp		
 			sensor2.action = 0;												// action requested
-			printf("FROM CLIENT: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\n", sensor2.hostname, sensor2.nsensor, sensor2.sensor_num, sensor2.low, sensor2.high, sensor2.data, sensor2.timestamp);
+			
+			// Print, check values
+			print_struct(&sensor2);
+			close(fd2);
 		}
 	}
 
