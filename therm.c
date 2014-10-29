@@ -33,8 +33,10 @@ int PORTNO = 9766;
 // Timestamp function ~24 char
 char * timestamp() {
 	time_t ltime;				// Calendar time
-	ltime = time(NULL);			// Current cal time
-	return asctime(localtime(&ltime));
+	ltime = time(NULL);	// Current cal time
+	char * ts = asctime(localtime(&ltime));
+	strtok(ts, "\n");		// Remove carriage return
+	return ts;
 }
 
 // Function to convert Celsius to Fahrenheit
@@ -77,7 +79,7 @@ void set_hostname(sensorInfo *x) {
 // Returns 1 if successful
 int send_struct(const int sockfd, const sensorInfo *x) {
 	int n;
-	uint16_t len, len2;				// Length of message to be sent to server
+	uint16_t len, len2;			// Length of message to be sent to server
 	char buf[256];					// Concatenated struct into message str
 
 	sprintf(buf, "%s,%d,%d,%.2f,%.2f,%.2f,%s,%d", x->hostname, x->nsensor, x->sensor_num, x->low, x->high, x->data, x->timestamp, x->action);
