@@ -24,11 +24,13 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 #include <string.h>
 #include <time.h>	// Timestamp
 
 char* GROUPNO = "g05";
 int PORTNO = 9766;
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // Timestamp function ~24 char
 char * timestamp() {
@@ -111,6 +113,10 @@ int send_struct(const int sockfd, const sensorInfo *x) {
 
 int main(int argc, char *argv[]) {
 	
+	//Lock mutex
+	//pthread_mutex_lock (&mtx);
+	
+
 	// Requires hostname argument in command line
 	if (argc != 2) {
 		printf("usage: %s hostname\n", argv[0]);
@@ -302,6 +308,9 @@ int main(int argc, char *argv[]) {
 	if (nsensor == 2) send_struct(sockfd, &sensor2);
 
 	fclose(errorlog);
+
+	//unlock mutex
+	//pthread_mutex_unlock(&mtx);
 
 	exit;
 }
