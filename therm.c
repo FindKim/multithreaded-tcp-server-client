@@ -37,7 +37,7 @@ char * timestamp() {
 	time_t ltime;				// Calendar time
 	ltime = time(NULL);	// Current cal time
 	char * ts = asctime(localtime(&ltime));
-	strtok(ts, "\n");		// Remove carriage return
+	strtok(ts, "\n");		// Remove carriage return	
 	return ts;
 }
 
@@ -179,6 +179,7 @@ int main(int argc, char *argv[]) {
 					sensor.low = strtod(range_readings,NULL);
 					range_readings = strtok(NULL, " ");
 					sensor.high = strtod(range_readings,NULL);
+					sensor.action = 0;
 					sensor_counter++;
 				
 				// Second sensor (if exists)
@@ -189,6 +190,7 @@ int main(int argc, char *argv[]) {
 					sensor2.low = strtod(range_readings,NULL);
 					range_readings = strtok(NULL, " ");
 					sensor2.high = strtod(range_readings,NULL);
+					sensor2.action = 0;
 					sensor_counter++;
 				}
 			}

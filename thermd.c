@@ -24,16 +24,17 @@
 
 char* GROUPNO = "g05";
 char* PORTNO = "9766";
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // Struct for temperature reading
 typedef struct {
-	char hostname[32];	// Name of host with the sensors
+	char hostname[32];			// Name of host with the sensors
 	int nsensor;				// Number of sensors
-	int sensor_num;			// Sensor number
-	double low, high;		// Acceptable low/high value for this sensor
+	int sensor_num;				// Sensor number
+	double low, high;			// Acceptable low/high value for this sensor
 	double data;				// Sensor reading
-	char timestamp[32];	// Timestamp
-	int action;					// Action requested
+	char timestamp[32];			// Timestamp
+	int action;				// Action requested
 	// action == 0: Send sensor data
 	// action == 1: Request status
 	// Sensor data fields in your struct should be set to zero for a “request status” packet.
@@ -61,6 +62,115 @@ void fill_struct(sensorInfo *x, char buffer[]) {
 	x->action = atoi(structfill);
 }
 
+char * convertMonth (char * stampTok){
+
+	char *month, *temp;
+	temp = "Jan\0";
+	if(!strcmp(stampTok, temp)){
+		month = "01";
+		return month;
+	} 
+	temp = "Feb\0";	
+	if (!strcmp(stampTok, "Feb")){
+		month = "02";
+		return month;
+	} 
+	temp = "Mar\0";	
+	if(!strcmp(stampTok, "Mar")){
+		month = "03";
+		return month;
+	} 
+	temp = "Apr\0";	
+	if(!strcmp(stampTok, "Apr")){
+		month = "04";
+		return month;
+	} 
+	temp = "May";	
+	if (!strcmp(stampTok, "May")){
+		month = "05";
+		return month;
+	} 
+	temp = "Jun\0";	
+	if(!strcmp(stampTok, "Jun")){
+		month = "06";
+		return month;
+	} 
+	temp = "Jul\0";
+	if(!strcmp(stampTok, "Jul")){		
+		month = "07";
+		return month;
+	} 
+	temp = "Aug\0";
+	if (!strcmp(stampTok, "Aug")){
+		month = "08";
+		return month;
+	}
+	temp = "Sep\0";
+	if(!strcmp(stampTok, "Sep")){
+		month = "09";
+		return month;
+	} 
+	temp = "Oct\0";
+	if(!strcmp(stampTok, "Oct")){
+		month = "10";
+		return month;
+	} 
+	temp = "Nov\0";
+	if (!strcmp(stampTok, "Nov")){
+		month = "11";
+		return month;
+	} 
+	temp = "Dec\0";	
+	if(!strcmp(stampTok, "Dec")){
+		month = "12";
+		return month;
+	}
+	
+	return 0;
+
+}
+
+// Write results to log file
+void write_result(sensorInfo x, sensorInfo x2) {
+	char *logfilename;
+	
+	//Day of the week
+	char *datetok = strtok (x.timestamp, " ");
+	
+	//Month
+	datetok = strtok (NULL, " ");
+	char *month = convertMonth(datetok);
+	
+	//Day
+	datetok = strtok (NULL, " :");
+	char * day = datetok;
+
+	//Time
+	datetok = strtok (NULL, " :");
+	char *hour = datetok;
+	datetok = strtok (NULL, " :");
+	char *minute = datetok;
+	
+	//Year
+	datetok = strtok (NULL, " :");
+	datetok = strtok (NULL, " :");	
+	char *year = datetok;
+
+	pthread_mutex_lock (&mtx);
+
+	sprintf(logfilename, "/var/log/therm/temp_logs/g05_%s_%s_%s", year, month, &x.hostname);
+	
+	FILE *logfile = fopen(logfilename, "a");
+	if(logfile == NULL) exit(EXIT_FAILURE);
+
+	fprintf(logfile, "%s %s %s %s %s %.1f %.1f\n", year, month, day, hour, minute, x.data, x2.data);
+	
+	fclose(logfile);
+	pthread_mutex_unlock (&mtx);
+}	
+		
+	
+
 // Prints values of sensorInfo struct
 void print_struct(const sensorInfo *sensor) {
 	printf("\nFROM SERVER: Hostname: %s\nNumber of Sensors: %d\nSensor Number: %d\nLow: %.1f\nHigh: %.1f\nReading: %.1f\nTimestamp: %s\nAction: %d\n", sensor->hostname, sensor->nsensor, sensor->sensor_num, sensor->low, sensor->high, sensor->data, sensor->timestamp, sensor->action);
@@ -73,9 +183,8 @@ void * rec_struct (void * param){
 	sensorInfo sensor, sensor2;	
 	int rbyte;
 	char buffer[256];
-	char *tok, *tok2;
 	uint16_t datasize;
-	char *logfile;
+	
 
 	// Read data size from client
 	if((rbyte = read(r, &datasize, sizeof(uint16_t))) < 0){
@@ -97,14 +206,7 @@ void * rec_struct (void * param){
 	//Parse through data and fill first struct
 	fill_struct(&sensor, buffer);
 	print_struct(&sensor);
-
-	//If action == 0, append data to logfile
-	/*if(sensor.action == 0){
-		char *datetok = strtok (sensor.timestamp, " ");
-		sprintf(logfile, "/var/log/therm/temp_logs/g05_"
-		
-	*/
-
+	
 	
 	// Prepare to receive from client if more than 1 sensor
 	if(sensor.nsensor == 2){
@@ -128,7 +230,13 @@ void * rec_struct (void * param){
 		//Parse through data and fill second struct
 		fill_struct(&sensor2, buffer);
 		print_struct(&sensor2);
+
+		
 	}
+		//if action == 0 append to file
+		if (sensor.action == 0){
+			write_result(sensor, sensor2);
+		}
 
 	close(r);
 }
@@ -183,7 +291,8 @@ int main (int argc, char *argv[]){
 
 	freeaddrinfo(sinfo);
 
-	//Listen for clients
+
+	//Listen for clients	
 	while (listen(s, 5) > -1) {
 
 		socklen_t sinlen = sizeof(struct sockaddr_storage);
