@@ -25,8 +25,14 @@ Design decisions:
 	A second struct is instantiated if the client.config file denotes 2 sensors and initialization and readings are done.
 	Once all the sensor information is collected that that machine, the client seeks to connect to a server that is specified on the command line. Since structs are not consistently sent across the network, sensor information in the struct is concatenated together into one c string. Each entry is separated by a comma ','. The final size of the concatenated string is first sent to the server as an unsigned short, which endianess in consideration. Once the server receives the short, it waits for the client to send a string of that length, and then splits the string with a comma as the delimiter and is stored in the same format as the client version of the sensor information struct.
 
+	For the server, it first fills the addrinfo struct and binds to the address. The server then begins listening for clients. If a request comes in, it creates a new socket and a new thread that runs the rec_struct function, which receives data from the client and calls the fill_struct function, which parses the information and fills a sensorInfo struct with that data. If there is a second sensor, the steps listed previously are repeated for the second sensor.
+	After receiving all of the information, the function then checks to see if the action variable in the struct is set to 0. If it is, the write_result function is called, which appends the information of the sensor(s) to the appropriate log file. This function parses the timestamp into appropriate parts, converts the month to its numerical value using a convertMonth function I wrote so that the information could be used to both write the correct information and to the right file. 
+	The create new thread and new socket functions are placed in a loop that continually listens for clients. 
+
+
 Issues:
 	errorlog file permissions: I came across a frustrating issue of writing to an existing log file in the /var/log/therm/error/ directory for my group. We initially thought an error openning the file was due to blocking, but turned out to be simply file permissions not given to the other group member. To solve this issue, the client runs the command chmod to allow everybody access to read and write to the errorlog file--this considers if the file doesn't exist and already exists.
+	
 
 
 
